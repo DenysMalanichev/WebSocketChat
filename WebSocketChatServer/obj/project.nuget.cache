@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "1sLf2lUjuk7l1KEDbBK0UQylUTNbiqIB3ouJHyD+QAwqv1O3p/OnLzf0aaUQ5kht7/2qDc8rshl/hhweFm3rww==",
+  "success": true,
+  "projectFilePath": "D:\\KPI 4 course\\web\\lab1\\SocketsConsole\\WebSocketChatServer\\lab1.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\user\\.nuget\\packages\\newtonsoft.json\\13.0.3\\newtonsoft.json.13.0.3.nupkg.sha512"
+  ],
+  "logs": []
+}
