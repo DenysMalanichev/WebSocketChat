@@ -1,0 +1,38 @@
+/* Message container for positioning and spacing */
+.message-container {
+    display: flex;
+    justify-content: center; /* Centers the notification horizontally */
+    margin: 10px 0;          /* Adds vertical space between messages */
+}
+
+/* Message bubble styling */
+.message-bubble {
+    background-color: #e0f7fa;  /* Light cyan background */
+    border-radius: 12px;        /* Rounded corners */
+    padding: 10px 20px;         /* Padding inside the bubble */
+    max-width: 80%;             /* Limit the width of the bubble */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Soft shadow for depth */
+}
+
+/* Notification text styling */
+.notification-text {
+    margin: 0;
+    font-weight: 700;
+    font-size: 14px; 
+    text-align: center;
+}
+
+.message-bubble {
+    animation: fadeIn 0.5s ease-in-out; 
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

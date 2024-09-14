@@ -1,5 +1,6 @@
 export interface MessageModel {
-    UserId: number;
+    UserName: string;
     Message: string;
     TimeSend: string;
+    ChatId: string;
 }

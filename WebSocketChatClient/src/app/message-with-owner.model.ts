@@ -1,5 +1,5 @@
 export interface MessageWithOwnerModel {
-    UserId: number;
+    UserName: string;
     Message: string;
     TimeSend: string;
     OwnMessage: boolean;

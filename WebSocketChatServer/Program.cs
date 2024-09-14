@@ -5,38 +5,53 @@ using Newtonsoft.Json;
 
 class WebSocketChatServer
 {
-    // Store all connected clients
-    private static List<WebSocket> _clients = new();
+    private static Dictionary<InitialMessageModel, WebSocket> _clients = new();
 
     public static async Task Main()
     {
-        HttpListener httpListener = new HttpListener();
+        var httpListener = new HttpListener();
         httpListener.Prefixes.Add("http://localhost:5000/");
         httpListener.Start();
         Console.WriteLine("WebSocket server started at ws://localhost:5000");
 
         while (true)
         {
-            // Wait for an incoming HTTP connection request.
             HttpListenerContext context = await httpListener.GetContextAsync();
 
             if (context.Request.IsWebSocketRequest)
             {
-                // Accept the WebSocket connection
                 HttpListenerWebSocketContext wsContext = await context.AcceptWebSocketAsync(null);
                 WebSocket webSocket = wsContext.WebSocket;
 
                 Console.WriteLine("Client connected!");
 
-                // Add the new client to the client list
-                _clients.Add(webSocket);
+                var buffer = new byte[1024];
 
-                // Start handling the client in a background task
+                var initialMessage = await ParseInitialMessage(webSocket);
+                if (initialMessage is null)
+                {
+                    Console.WriteLine("Error: Received empty or invalid message.");
+                    continue;
+                }
+
+                try
+                {
+                    _clients.Add(initialMessage, webSocket);
+                }
+                catch(ArgumentException)
+                {
+                    _clients.Remove(initialMessage);
+                    _clients.Add(initialMessage, webSocket);
+                }
+
+                Console.WriteLine($"Listed client {initialMessage.UserName} in chat {initialMessage.ChatId}");
+
+                await BroadcastMessageAsync(initialMessage);
+
                 _ = Task.Run(() => HandleClientAsync(webSocket));
             }
             else
             {
-                // Respond with a 400 Bad Request for non-WebSocket requests
                 context.Response.StatusCode = 400;
                 context.Response.Close();
             }
@@ -45,7 +60,7 @@ class WebSocketChatServer
 
     private static async Task HandleClientAsync(WebSocket webSocket)
     {
-        byte[] buffer = new byte[10240];
+        var buffer = new byte[10240];
 
         try
         {
@@ -56,15 +71,17 @@ class WebSocketChatServer
                 // If the client wants to close the WebSocket
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    Console.WriteLine("Client disconnected.");
-                    if(_clients.Count == 0)
+                    var initialMessage = await ParseInitialMessage(webSocket);
+                    if (initialMessage is null)
                     {
-                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                        Console.WriteLine("Error: Received empty or invalid message.");
+                        continue;
                     }
+                    Console.WriteLine($"Client {initialMessage.UserName} disconnected from chat (ID: {initialMessage.ChatId}).");
 
                     lock(new object())
                     {
-                        _clients.Remove(webSocket);  // Remove client from list
+                        _clients.Remove(initialMessage);
                     }
                     
                     break;
@@ -81,10 +98,10 @@ class WebSocketChatServer
                         continue;
                     }
 
-                    Console.WriteLine($"User (ID: {messageModel.UserId}) - {messageModel.Message} - (at {messageModel.TimeSend})");
+                    Console.WriteLine($"User (ID: {messageModel.UserName}) - {messageModel.Message} - (at {messageModel.TimeSend})");
 
                     // Broadcast the message to all connected clients
-                    await BroadcastMessageAsync(webSocket, messageModel);
+                    await BroadcastMessageAsync(messageModel);
                 }
                 catch (Exception jsonEx)
                 {
@@ -98,28 +115,40 @@ class WebSocketChatServer
         }
         finally
         {
-            if (webSocket != null)
+            Console.WriteLine("Error handling message");
+        }
+    }
+
+    private static async Task BroadcastMessageAsync(MessageModel message)
+    {
+        foreach (var client in _clients)
+        {
+            if (client.Key.UserName != message.UserName && client.Value.State == WebSocketState.Open && client.Key.ChatId == message.ChatId)
             {
-                lock(new object())
-                {
-                    _clients.Remove(webSocket);
-                }
-                
-                webSocket.Dispose();
+                byte[] responseBytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message));
+                await client.Value.SendAsync(new ArraySegment<byte>(responseBytes), WebSocketMessageType.Text, true, CancellationToken.None);
             }
         }
     }
 
-    // Broadcast a message to all connected clients except the sender
-    private static async Task BroadcastMessageAsync(WebSocket sender, MessageModel message)
+    private static async Task BroadcastMessageAsync(InitialMessageModel message)
     {
         foreach (var client in _clients)
         {
-            if (client != sender && client.State == WebSocketState.Open)
+            if (client.Key.UserName != message.UserName && client.Value.State == WebSocketState.Open && client.Key.ChatId == message.ChatId)
             {
                 byte[] responseBytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message));
-                await client.SendAsync(new ArraySegment<byte>(responseBytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                await client.Value.SendAsync(new ArraySegment<byte>(responseBytes), WebSocketMessageType.Text, true, CancellationToken.None);
             }
         }
+    }
+
+    private static async Task<InitialMessageModel> ParseInitialMessage(WebSocket webSocket)
+    {
+        var buffer = new byte[1024];
+
+        var initailMessage = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+        return JsonConvert.DeserializeObject<InitialMessageModel>(
+            Encoding.UTF8.GetString(buffer, 0, initailMessage.Count))!;
     }
 }

@@ -1,7 +1,7 @@
 <div class="message-container" [ngClass]="isOwnMessage ? 'own-message' : 'other-message'">
     <div class="message-bubble">
         <div class="name">
-            {{ (messageModel.OwnMessage ? 'Me' : 'User ' + messageModel.UserId) + ':' }}
+            {{ (messageModel.OwnMessage ? 'Me' : 'User ' + messageModel.UserName) + ':' }}
         </div>
         <p class="message-text">{{ messageModel.Message }}</p>
         <small class="message-time">{{ messageModel.TimeSend | date:'shortTime' }}</small>
